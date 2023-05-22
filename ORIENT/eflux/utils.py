@@ -102,7 +102,7 @@ def frame_fillgap(pdframe, max_gap):
 
 
 def unix2datetime(unix_list):
-    date_list = pd.to_datetime(unix_list, unit='s')
+    date_list = pd.to_datetime(unix_list, unit='s',utc = True)
     return np.array(date_list)
 
 def warningtime(start_time, end_time, unix_time):
@@ -120,3 +120,38 @@ def unix_time_serires_init(start_time,end_time,time_resolution = 5):
     ntime = int(((end_time_unix - start_time_unix) / time_delta)) + 1
     time = np.linspace(start_time_unix, end_time_unix, ntime)
     return time
+def get_interp_flux(frame,target_time,target_range,ax,label,start_storm_time):
+        time_interped = []
+        L_interped = []
+        flux_get = []
+        times = frame['time'].values # Your list of time values
+        L_values =frame['Lm_eq'].values  # Your list of L values
+        flux_values = frame['flux'].values
+        
+    
+        for index, (time, L) in enumerate(zip(times, L_values)):
+            if target_range[0] <= L <= target_range[1]:
+                time_interped.append(time)
+                L_interped.append(L)
+                flux_get.append(flux_values[index])
+        ax.plot(time_interped,np.log10(np.array(flux_get)+1),label = label)
+        
+
+
+
+        times =np.array(time_interped)
+        index_check_min_flux = np.where((times>start_storm_time) &(times<(start_storm_time + np.timedelta64(6, 'h'))))
+
+        fluxes = np.log10(np.array(flux_get)+1)
+        unix_times = (times.astype('datetime64[s]').view('int64') - 4 * 3600) / 1e9
+
+    # The given time for which you want to interpolate the flux (as a numpy.datetime64 object)
+
+    # Convert the target_time to Unix timestamp
+        target_unix_time = (target_time.astype('datetime64[s]').view('int64') - 4 * 3600) / 1e9
+
+    # Interpolate the flux at the target time
+        target_flux = np.interp(target_unix_time, unix_times, fluxes)
+        flux_min = np.nanmin(fluxes[index_check_min_flux] )
+        
+        return target_flux,flux_min

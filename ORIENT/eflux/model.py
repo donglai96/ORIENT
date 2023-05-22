@@ -17,7 +17,8 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.colors import LogNorm
 import matplotlib.ticker as ticker
 from .utils import *
-
+import pickle
+import shap
 
 class ElectronFlux(object):
     def __init__(self,
@@ -69,6 +70,16 @@ class ElectronFlux(object):
 
         # For input gap
         self.gap_max = gap_max
+        name_ = self.instrument + '_ch' + str(self.channel) + '_'
+        if self.model_extra is not None:
+            name_ = name_ + self.model_extra + '_'
+        if (self.instrument =='mageis2') and (self.channel == 3):
+            name_ = 'mageis_ch3_' 
+        model_name = self.model_folder + name_ + 'model_sav.h5'
+        model_avg = self.model_folder + name_ + 'input_avg.npy'
+        model_std = self.model_folder + name_ + 'input_std.npy'
+        nnmodel = tf.keras.models.load_model(model_name)
+        self.nnmodel = nnmodel
             
 
         
@@ -112,7 +123,10 @@ class ElectronFlux(object):
                  get_MLT_flux = False,
                  selected_MLT_datetime = None, 
                  trajfolder = '/home/disk_f/data/eflux/selfmade/',
-                 get_input_time = None):
+                 get_input_time = None,
+                 return_total_input_L = None,
+                 get_background = False,
+                 setMLT = 0):
         """
         Calculate the flux based on
         @param dst: dst or dst_kyoto
@@ -127,6 +141,7 @@ class ElectronFlux(object):
         self.al_source = al_source
         self.use_traj = use_traj
         self.trajfolder = trajfolder
+        self.get_background = get_background
         ## Add prediction
         # This part is for prediction mode
         # The input for prediction is :
@@ -336,15 +351,28 @@ class ElectronFlux(object):
 
             lag_name += list(item_assem_frame.columns)
             lag_matrix_all[:, ii*num_per_item:(ii+1)*num_per_item] = item_assem_frame.values
+            #self.column_names = eflux_train_data.columns
         if self.instrument == 'rept':
-            L_index = 2
-            pos_matrix_all =  np.zeros((len(lag_matrix_all),4)) # time MLAT, MLT, R
+            L_index = 0
+            pos_matrix_all =  np.zeros((len(lag_matrix_all),5))# time L MLAT MLTsin MLTcos
+            pos_matrix_all[:,4] = 1
+            print('set sinMLT = 0 and cosMLT = 1,MLAT = 0') 
+            #pos_matrix_all =  np.zeros((len(lag_matrix_all),4)) # time MLAT, MLT, R #this has been changed
         elif (self.instrument =='mageis') or (self.instrument =='mageis2'):
             L_index = 3
             pos_matrix_all =  np.zeros((len(lag_matrix_all),5))# time MLAT, sinMLT,cosMLT, R
-
-
+            pos_matrix_all[:,3] = 1
+            print('set sinMLT = 0 and cosMLT = 1,MLAT = 0')
+        if setMLT > 0:
+            print('!!!!!!!!!!!!!!!')
+            print('set MLT is not 0! The MLT is going to be',setMLT) 
+            MLT_use = setMLT * 15* np.pi/180
+            pos_matrix_all[:,2] = np.sin(MLT_use)
+            pos_matrix_all[:,3] = np.cos(MLT_use)
         if self.use_traj:
+            
+
+
             print('start reading traj info, using real traj, the folder is: ',self.trajfolder)
             time_unix_traj = pd.read_pickle(self.trajfolder + 'unix_time_5min')
             time_traj = pd.to_datetime(time_unix_traj,unit='s')
@@ -427,6 +455,7 @@ class ElectronFlux(object):
         model_avg = self.model_folder + name_ + 'input_avg.npy'
         model_std = self.model_folder + name_ + 'input_std.npy'
         nnmodel = tf.keras.models.load_model(model_name)
+        self.nnmodel = nnmodel
         eflux_avg = np.load(model_avg)
         eflux_std = np.load(model_std)
         #print(eflux_std[0:5])
@@ -436,12 +465,19 @@ class ElectronFlux(object):
         if use_traj:
             X_input_a =    (total_matrix_a[:,1:] - eflux_avg)/eflux_std
             X_input_b = (total_matrix_b[:,1:] - eflux_avg)/eflux_std
+            if self.get_background == True:
+                print('! Using average input instead of real omni data:')
+                print('************************************************')
+                print('so the normalized inputs except location are 0')
+                X_input_a[:,5:] = 0
+                X_input_b[:,5:] = 0
             a_pred = nnmodel.predict(X_input_a).squeeze()
             b_pred = nnmodel.predict(X_input_b).squeeze()
             data_traj_a_frame['pred'] = a_pred
             data_traj_b_frame['pred'] = b_pred
             return data_traj_a_frame,data_traj_b_frame
 
+        
 
         X_input = (total_matrix[:,1:] - eflux_avg)/eflux_std
         t_data = pd.to_datetime(total_matrix[:,0],unit  = 's')
@@ -456,6 +492,10 @@ class ElectronFlux(object):
             R_std = eflux_std[L_index]
             ll_norm = (ll - R_avg) / R_std
             X_input[:, L_index] = ll_norm
+            if (return_total_input_L is not None) and (np.abs(ll - return_total_input_L)<0.01):
+                print('returning L = ',ll)
+                return X_input
+
             y_pred = nnmodel.predict(X_input).squeeze()
             plot_matrix[:, i] = y_pred
             L_name = 'L_' + str(round(ll, 2))
@@ -546,7 +586,10 @@ class ElectronFlux(object):
                 ll = rmin + i *(rmax - rmin)/L_num
                 ll_norm = (ll - R_avg)/R_std
                 X_input_total[i,:] = X_input_baseget
-                X_input_total[i,3] = ll_norm
+                if self.instrument =='rept':
+                    X_input_total[i,0] = ll_norm
+                else:
+                    X_input_total[i,3] = ll_norm
             #create the matrix for input
             # Now change the L_input
             
@@ -634,12 +677,12 @@ class ElectronFlux(object):
             ax.set_xlim(t_data[0],t_data[-1])
 
         plt.show()
-    def make_flux_plot(self,ax,normmax = 10**4):
+    def make_flux_plot(self,ax,normmax = 10**4,normmin = 1):
         t_data = self.t_data
         L_data = self.L_range
         time_mesh, L_mesh = np.meshgrid(t_data, L_data)
 
-        ob = ax.pcolormesh(time_mesh, L_mesh, 10**self.plot_matrix.T, cmap='jet', norm=LogNorm(vmin=1, vmax=normmax))
+        ob = ax.pcolormesh(time_mesh, L_mesh, 10**self.plot_matrix.T, cmap='jet', norm=LogNorm(vmin=normmin, vmax=normmax))
         ax.set_ylim(L_data[0],L_data[-1])
         return ob
 
@@ -727,8 +770,46 @@ class ElectronFlux(object):
         cb.ax.tick_params(labelsize=22) 
         cb.set_label(label=r'$cm^{-2}s^{-1}sr^{-1}keV^{-1}$',fontsize = 30)
         plt.show()
-    
-    
+    def get_explainer(self,explainer_name = 'GradientExplainer',training_folder = '/Users/donglaima/Research/data/orient_traindata',select_num = 100):
+        #tf.compat.v1.disable_v2_behavior()
+        tf.compat.v1.disable_eager_execution()
+        # if explainer_name != 'GradientExplainer':
+        #     raise ValueError('Explainer could only by GradientExplainer for now')
+        # read the training dataset
+
+        eflux_train = training_folder + '/' + 'ch' + str(self.channel) + '_x_train.pickle'
+        with open(eflux_train, 'rb') as f:
+            eflux_train_data = pickle.load(f)
+        
+        
+
+        print('getting explainer using training data...')
+        if explainer_name == 'GradientExplainer':
+            print('Using gradient explainer')
+            shap.explainers._deep.deep_tf.op_handlers["AddV2"] = shap.explainers._deep.deep_tf.passthrough 
+            shap.explainers._deep.deep_tf.op_handlers["BatchMatMulV2"] = shap.explainers._deep.deep_tf.passthrough 
+            shap.explainers._deep.deep_tf.op_handlers["TensorListStack"] = shap.explainers._deep.deep_tf.passthrough 
+            shap.explainers._deep.deep_tf.op_handlers["StatelessWhile"] = shap.explainers._deep.deep_tf.passthrough 
+            shap.explainers._deep.deep_tf.op_handlers["TensorListFromTensor"] = shap.explainers._deep.deep_tf.passthrough 
+            shap.explainers._deep.deep_tf.op_handlers["Sin"] = shap.explainers._deep.deep_tf.passthrough
+            explainer = shap.GradientExplainer(self.nnmodel,eflux_train_data)
+        if explainer_name == 'DeepExplainer':
+            print('Using deep explainer')
+            print(eflux_train_data.shape)
+            choice = eflux_train_data[np.random.choice(eflux_train_data.shape[0], select_num, replace=False), :]
+            shap.explainers._deep.deep_tf.op_handlers["AddV2"] = shap.explainers._deep.deep_tf.passthrough 
+            shap.explainers._deep.deep_tf.op_handlers["BatchMatMulV2"] = shap.explainers._deep.deep_tf.passthrough 
+            shap.explainers._deep.deep_tf.op_handlers["TensorListStack"] = shap.explainers._deep.deep_tf.passthrough 
+            shap.explainers._deep.deep_tf.op_handlers["StatelessWhile"] = shap.explainers._deep.deep_tf.passthrough 
+            shap.explainers._deep.deep_tf.op_handlers["TensorListFromTensor"] = shap.explainers._deep.deep_tf.passthrough 
+            shap.explainers._deep.deep_tf.op_handlers["Sin"] = shap.explainers._deep.deep_tf.passthrough
+            print(choice.shape)
+            explainer = shap.DeepExplainer(self.nnmodel,choice)
+        print('finished')
+
+        self.explainer = explainer
+        
+        return explainer   
 
     @staticmethod
     def extend_frame(frame,time_extend,mode = 'avg',value = 0):
