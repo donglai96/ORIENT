@@ -13,6 +13,7 @@ import pyspedas
 import pandas as pd
 from pytplot import tplot
 import numpy as np
+from datetime import timezone
 
 def unix2datetime(unix_list):
     date_list = pd.to_datetime(unix_list, unit='s')
@@ -71,13 +72,23 @@ class input_var(object):
             raise ValueError("Not available")
 
 
-        self.tdata = self.vars[name]['x']
-        self.data = self.vars[name]['y']
+        self.tdata_new = np.array(self.vars[name]['x'])
+        #print('test',self.tdata_new[0].tzinfo())
+        self.timestamp_new = np.array([tdata.replace(tzinfo=timezone.utc) for tdata in self.tdata_new])
+        # update in 2023, time stamp convert back to epoch
+        #print('test',self.tdata_new[0])
+        
+        self.tdata = np.array([tdata.timestamp() for tdata in self.timestamp_new])
+        self.data = np.array(self.vars[name]['y'])
 
         if gap_fill:
             print('filling gap of %s' % self.name)
+            #print(self.tdata)
+            #tdata = np.array(self.tdata)
             self.data = fill_gap(self.tdata, self.data, max_gap=self.gap_max)
+        
         self.tdate = unix2datetime(self.tdata)
+        
         frame = pd.DataFrame(data = {'date':self.tdate,name:self.data})
         frame.set_index('date', inplace=True, drop=True)
 

@@ -1,0 +1,32 @@
+Metadata-Version: 2.1
+Name: ORIENT
+Version: 1.0
+Summary: Real time Electron flux data and tool for visulizing
+Home-page: https://github.com/donglai96/ORIENT
+Author: Donglai Ma
+Author-email: dma96@atmos.ucla.edu
+License: MIT
+Keywords: predict radiation-belt
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3.8
+Requires-Python: ==3.8
+Description-Content-Type: text/markdown
+
+# ORIENT
+
+This is the final version of ORIENT.
+
+## Installation
+
+python setup.py -develop
+
+Notice the tensorflow is 
+
+## Read geomagnetic indices
+
+
+

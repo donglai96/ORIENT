@@ -61,9 +61,9 @@ class TrajFlux(object):
         return data_a_frame,data_b_frame
         
 
-def plot_real_flux(ax,frame,flux_min,flux_max,cmap = 'jet',linewidth = 4,use_L = 'ED_R'):
+def plot_real_flux(ax,frame,flux_min,flux_max,cmap = 'jet',linewidth = 4,use_L = 'ED_R',frame_name = 'flux'):
     L_probe = frame[use_L]
-    flux_real = frame['flux'].values + 1
+    flux_real = frame[frame_name].values + 1
     inxval_real = mdates.date2num(frame['time'])
     points_real = np.array([inxval_real, L_probe]).T.reshape(-1,1,2)
     segments_real = np.concatenate([points_real[:-1],points_real[1:]], axis=1)
