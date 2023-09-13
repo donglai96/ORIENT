@@ -10,7 +10,7 @@ import pandas as pd
 import os
 import matplotlib.dates as mdates
 from matplotlib.collections import LineCollection
-from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm,Normalize
 
 class TrajFlux(object):
     def __init__(self,
@@ -61,15 +61,24 @@ class TrajFlux(object):
         return data_a_frame,data_b_frame
         
 
-def plot_real_flux(ax,frame,flux_min,flux_max,cmap = 'jet',linewidth = 4,use_L = 'ED_R',frame_name = 'flux'):
+def plot_real_flux(ax,frame,flux_min,flux_max,cmap = 'jet',linewidth = 4,use_L = 'ED_R',frame_name = 'flux',norm = 'log'):
     L_probe = frame[use_L]
-    flux_real = frame[frame_name].values + 1
+    if frame_name =='error':
+        flux_real = frame[frame_name].values
+    else:
+        flux_real = frame[frame_name].values + 1
+
+    
     inxval_real = mdates.date2num(frame['time'])
     points_real = np.array([inxval_real, L_probe]).T.reshape(-1,1,2)
     segments_real = np.concatenate([points_real[:-1],points_real[1:]], axis=1)
-    
-    lc_real = LineCollection(segments_real, cmap=cmap, linewidth=linewidth,norm=LogNorm(vmin = 10**flux_min,vmax=10**flux_max))
+    if norm == 'log':
+        lc_real = LineCollection(segments_real, cmap=cmap, linewidth=linewidth,norm=LogNorm(vmin = 10**flux_min,vmax=10**flux_max))
+
+    else:
+        lc_real = LineCollection(segments_real, cmap=cmap, linewidth=linewidth,norm=Normalize(vmin=flux_min, vmax=flux_max))
 
     lc_real.set_array(flux_real)
     line_real = ax.add_collection(lc_real)
     return line_real
+

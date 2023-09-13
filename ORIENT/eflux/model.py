@@ -11,7 +11,7 @@ import os
 from datetime import datetime, timedelta
 
 from .config import CONFIG
-from .. import ae_CB,al_CB
+from .. import ae_CB,al_CB,ace
 from .. import omni
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.colors import LogNorm
@@ -122,7 +122,7 @@ class ElectronFlux(object):
                  # add MLT snap shot at selected time
                  get_MLT_flux = False,
                  selected_MLT_datetime = None, 
-                 trajfolder = '/home/disk_f/data/eflux/selfmade/',
+                 trajfolder = '~/Research/data/selfmade/',
                  get_input_time = None,
                  return_total_input_L = None,
                  get_background = False,
@@ -241,13 +241,13 @@ class ElectronFlux(object):
         #     self.flow_speed = data_frame_sw['Speed(km/s)'].copy().to_frame()
         #     self.pressure = data_frame_sw['Pressure(nPa)'].copy().to_frame()
         #     self.bz = data_frame_sw['Bz(nT)'].copy().to_frame()
-        # elif sw_source =='ace':
-        #     data_frame_sw  = ace.load(self.data_start_time,self.end_time)
-        #     self.flow_speed = data_frame_sw['Speed(km/s)'].copy().to_frame()
-        #     self.pressure = data_frame_sw['Pressure(nPa)'].copy().to_frame()
-        #     self.bz = data_frame_sw['Bz(nT)'].copy().to_frame()
+        if sw_source =='ace':
+            data_frame_sw  = ace.load(self.data_start_time,self.end_time)
+            self.flow_speed = data_frame_sw['Speed(km/s)'].copy().to_frame()
+            self.pressure = data_frame_sw['Pressure(nPa)'].copy().to_frame()
+            self.bz = data_frame_sw['Bz(nT)'].copy().to_frame()
         
-        if sw_source =='omni':
+        elif sw_source =='omni':
             self.flow_speed = self.omni_source.get_data('flow_speed')
             self.bz = self.omni_source.get_data('BZ_GSM')
             self.pressure = self.omni_source.get_data('Pressure')
@@ -326,7 +326,7 @@ class ElectronFlux(object):
                 if sw_source == 'ace':
                     gap_max = 1440
             else:
-                gap_max = 10
+                gap_max = self.gap_max
             item_data_raw = fill_gap(unix_time_raw,frame.values.squeeze(),gap_max)
 
             # interp the data on unix_time_extend
@@ -391,11 +391,12 @@ class ElectronFlux(object):
                 data_traj_a[name] = pd.read_pickle(self.trajfolder + file_name_a)
                 data_traj_b[name] = pd.read_pickle(self.trajfolder + file_name_b)
 
-            print(data_traj_a)
-            print(tdate)
-            data_traj_a_frame = (data_traj_a[(data_traj_a['time']<=tdate[-1]) & ( data_traj_a['time']>=tdate[0]) ]).copy()
+            # tdate
+            tdate_pd = [self.start_time,self.end_time]
+            print(tdate_pd)
+            data_traj_a_frame = (data_traj_a[(data_traj_a['time']<=tdate_pd[-1]) & ( data_traj_a['time']>=tdate_pd[0]) ]).copy()
 
-            data_traj_b_frame = (data_traj_b[(data_traj_b['time']<=tdate[-1]) & ( data_traj_b['time']>=tdate[0]) ]).copy()
+            data_traj_b_frame = (data_traj_b[(data_traj_b['time']<=tdate_pd[-1]) & ( data_traj_b['time']>=tdate_pd[0]) ]).copy()
             pos_matrix_traj_a = pos_matrix_all.copy()
             pos_matrix_traj_b = pos_matrix_all.copy()
 
