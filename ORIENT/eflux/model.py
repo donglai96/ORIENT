@@ -126,6 +126,7 @@ class ElectronFlux(object):
                  get_input_time = None,
                  return_total_input_L = None,
                  get_background = False,
+                 
                  setMLT = 0):
         """
         Calculate the flux based on
