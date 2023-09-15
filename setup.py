@@ -28,7 +28,7 @@ setup(
                  ],
     keywords='predict radiation-belt',
 
-    install_requires=['pandas','matplotlib','scipy','mechanize','astropy','pyspedas','tensorflow','shap'],
+    install_requires=['pandas<=1.6','matplotlib','scipy','mechanize','astropy','pyspedas','tensorflow','shap'],
     python_requires='>=3.8',
     include_package_data=True,
 )
