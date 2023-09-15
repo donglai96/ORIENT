@@ -461,6 +461,8 @@ class ElectronFlux(object):
         self.nnmodel = nnmodel
         eflux_avg = np.load(model_avg)
         eflux_std = np.load(model_std)
+        self.eflux_avg = eflux_avg
+        self.eflux_std = eflux_std
         #print(eflux_std[0:5])
         #print(eflux_avg[0:5])
         # remove nan here#################?

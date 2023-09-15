@@ -42,5 +42,7 @@ eflux_1 =  orient.eflux.model.ElectronFlux(start_time, end_time,instrument = 'ma
 final_frame, X_input_total = eflux_1.get_flux(dst_source='omni',
                  al_source='omni',
                  sw_source='omni',use_omni = True,use_traj = False,get_input_time = input_time)
+eflux_1.make_plot(normmax = 10**4)
+
 ```
 
