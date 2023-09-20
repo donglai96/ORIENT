@@ -1,11 +1,17 @@
 cff-version: 1.2.0
-message: "If you use this code, please cite it as below."
+title: ORIENT
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
 authors:
-- family-names: "Ma"
-  given-names: "Donglai"
-  orcid: "https://orcid.org/0000-0003-3183-4289"
-title: "ORIENT"
-version: 1.0.0
-doi: 10.5281/zenodo.8361955
-date-released: 2023-09-19
-url: "https://github.com/donglai96/ORIENT"
+  - given-names: Donglai
+    family-names: Ma
+    email: dma96@atmos.ucla.edu
+    name-particle: Donglai
+    affiliation: UCLA
+    orcid: 'https://orcid.org/0000-0003-3183-4289'
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.8361955
+repository-code: 'https://github.com/donglai96/ORIENT'
