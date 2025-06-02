@@ -514,7 +514,9 @@ class ElectronFlux(object):
         # Get the MLT flux
         if get_MLT_flux:
             # Find the closest time in the dataset:
-            MLT_time_index = self.t_data.get_loc(self.MLT_datetime, method = 'nearest')
+
+            #MLT_time_index = self= 'nearest')
+            MLT_time_index = self.t_data.get_indexer([self.MLT_datetime], method = 'nearest' )[0]
             # Remember that use X_input as the base value, just need to change the position matrix
             MLT_base_X_input = X_input[MLT_time_index,:]
 
@@ -579,7 +581,8 @@ class ElectronFlux(object):
             self.get_input_time = get_input_time #list of time
             #create a input_dic for every input time
             
-            input_time_index = self.t_data.get_loc(self.get_input_time, method = 'nearest')
+            #input_time_index = self.t_data.get_loc(self.get_input_time, method = 'nearest')
+            input_time_index = self.t_data.get_indexer([self.get_input_time], method = 'nearest')[0]
             X_input_baseget = X_input[input_time_index,:].squeeze()
             
             
