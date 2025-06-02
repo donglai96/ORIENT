@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from .config import CONFIG
 from .. import ae_CB,al_CB,ace
 from .. import omni
+from .. import dst_kyoto
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.colors import LogNorm
 import matplotlib.ticker as ticker
@@ -204,6 +205,8 @@ class ElectronFlux(object):
         if dst_source == 'dst':
             #self.dst = dst.load(self.data_start_time,self.end_time,no_update=no_update)
             raise ValueError("Dst source not found!Only support OMNI sym-h in this version!")
+        if dst_source =='kyoto':
+            self.dst = dst_kyoto.load(self.data_start_time, self.end_time)
         elif dst_source =='omni':#dst_source =='dst_kyoto':
             self.dst = self.omni_source.get_data('SYM_H')
             #raise ValueError('dst source not found!')
@@ -682,6 +685,7 @@ class ElectronFlux(object):
             ax.set_xlim(t_data[0],t_data[-1])
 
         plt.show()
+
     def make_flux_plot(self,ax,normmax = 10**4,normmin = 1):
         t_data = self.t_data
         L_data = self.L_range
@@ -690,6 +694,8 @@ class ElectronFlux(object):
         ob = ax.pcolormesh(time_mesh, L_mesh, 10**self.plot_matrix.T, cmap='jet', norm=LogNorm(vmin=normmin, vmax=normmax))
         ax.set_ylim(L_data[0],L_data[-1])
         return ob
+    
+    
 
 
     def makeMLTplot(self,normmax = 10**4):

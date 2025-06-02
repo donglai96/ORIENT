@@ -11,6 +11,9 @@ import os
 import matplotlib.dates as mdates
 from matplotlib.collections import LineCollection
 from matplotlib.colors import LogNorm,Normalize
+from matplotlib.colors import LinearSegmentedColormap, LogNorm, Normalize
+from matplotlib.collections import LineCollection
+import matplotlib.pyplot as plt
 
 class TrajFlux(object):
     def __init__(self,
@@ -61,14 +64,16 @@ class TrajFlux(object):
         return data_a_frame,data_b_frame
         
 
-def plot_real_flux(ax,frame,flux_min,flux_max,cmap = 'jet',linewidth = 4,use_L = 'ED_R',frame_name = 'flux',norm = 'log'):
+def plot_real_flux(ax,frame,flux_min,flux_max,cmap = 'jet',linewidth = 4,use_L = 'ED_R',frame_name = 'flux',norm = 'log',ratio = 1):
     L_probe = frame[use_L]
     if frame_name =='error':
         flux_real = frame[frame_name].values
+    elif frame_name =='psd':
+        flux_real = frame[frame_name].values 
     else:
         flux_real = frame[frame_name].values + 1
 
-    
+    flux_real = flux_real * ratio
     inxval_real = mdates.date2num(frame['time'])
     points_real = np.array([inxval_real, L_probe]).T.reshape(-1,1,2)
     segments_real = np.concatenate([points_real[:-1],points_real[1:]], axis=1)
@@ -80,5 +85,30 @@ def plot_real_flux(ax,frame,flux_min,flux_max,cmap = 'jet',linewidth = 4,use_L =
 
     lc_real.set_array(flux_real)
     line_real = ax.add_collection(lc_real)
+    return line_real
+
+def plot_real_flux_v2(ax, frame, flux_min, flux_max, cmap='jet', linewidth=4, use_L='ED_R', frame_name='flux', norm='log'):
+    L_probe = frame[use_L]
+    flux_real = frame[frame_name].values
+    
+    inxval_real = mdates.date2num(frame['time'])
+    points_real = np.array([inxval_real, L_probe]).T.reshape(-1,1,2)
+    segments_real = np.concatenate([points_real[:-1],points_real[1:]], axis=1)
+    
+    # Create a custom colormap
+    original_cmap = plt.cm.get_cmap(cmap)
+    colors = [(0,0,0)] + [original_cmap(i) for i in range(original_cmap.N)]
+    custom_cmap = LinearSegmentedColormap.from_list("custom_" + cmap, colors, N=len(colors))
+    
+    if norm == 'log':
+        norm_instance = LogNorm(vmin=10**flux_min, vmax=10**flux_max)
+    else:
+        norm_instance = Normalize(vmin=flux_min, vmax=flux_max)
+    
+    lc_real = LineCollection(segments_real, cmap=custom_cmap, linewidth=linewidth, norm=norm_instance)
+    lc_real.set_array(flux_real)
+    
+    line_real = ax.add_collection(lc_real)
+    
     return line_real
 
