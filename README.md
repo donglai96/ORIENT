@@ -46,3 +46,20 @@ eflux_1.make_plot(normmax = 10**4)
 
 ```
 
+## Examples
+The examples are in the example/ folder as jupyter notebook.
+
+Put the *RB_model* folder under the same dir
+### CCMC_test_storm
+This example show a one month with multi storms. It also include MLT visulization
+### CCMC_test_recent_storm
+When not using OMNI data (i.e. The data period we want to check is too close to the current time), we can change the source of the input parameter
+#### DST source
+support 'kyoto' and 'omni'
+#### AL source
+support 'omni' and 'al_CB', the AL_CB is the AL index model from CU Boulder, an example can also be found in another [repo](https://github.com/donglai96/ORIENT-M)
+#### solarwind source
+support 'omni' and 'ace'
+
+## To do
+Add orbit and can compare with e.g. Arase mission and Van Allen Probe on orbit. The Van Allen Probe part has finished, but it requires original orbit data which is not included.

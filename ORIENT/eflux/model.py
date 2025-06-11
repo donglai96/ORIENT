@@ -28,11 +28,11 @@ class ElectronFlux(object):
                  data_res = 5,
                  #model_folder =CONFIG['model_dir'],
                  model_folder ='RB_model/',
-                 instrument = 'mageis',
-                 channel = 11,
+                 instrument = 'mageis',# rbsp # 2 MeV
+                 channel = 11, # 3, 11, 14,16 - 50 keV , 235 keV, 600 keV, 909 keV (Mageis)
                  L_range = np.arange(2.6,6.6,0.1),
                  model_extra = None,
-                 gap_max = 180
+                 gap_max = 180 # ace data , gap, fill the gap < 3 hour
 
 
                  ):
