@@ -48,7 +48,12 @@ eflux_1.make_plot(normmax = 10**4)
 
 ## Examples
 The examples are in the example/ folder as jupyter notebook.
+### Model name
+instrument : mageis, 
+channel: 3, 11, 14, 16 , corresponding energy: 50 keV, 235 keV, 597 keV, 909 keV
 
+instrument : rbsp
+channel:1 .1.8 MeV
 Put the *RB_model* folder under the same dir
 ### CCMC_test_storm
 This example show a one month with multi storms. It also include MLT visulization
