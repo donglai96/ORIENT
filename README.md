@@ -46,6 +46,35 @@ eflux_1.make_plot(normmax = 10**4)
 
 ```
 
+### Usage - Command Line Interface Recommended for Community Coordinated Modeling Center (CCMC)
+
+For automated pipeline execution and production use, use the command-line script:
+
+```bash
+# Basic usage
+python examples/run_ORIENT.py --start_time 2013-06-01 --input_time 2013-06-01 --input_hour 3 --end_time 2013-06-02 --energy_levels "50,235"
+
+# Multiple energy levels with MLT plots
+python examples/run_ORIENT.py --start_time 2013-06-01 --input_time 2013-06-01 --input_hour 12 --end_time 2013-06-05 --energy_levels "50,235,597,909" --get_mlt_flux true --output_dir ./results
+
+# Using different data sources
+python examples/run_ORIENT.py --start_time 2013-06-01 --input_time 2013-06-01 --input_hour 3 --end_time 2013-06-02 --energy_levels "235" --dst_source kyoto --al_source al_CB --sw_source ace
+```
+
+#### Command Line Options:
+- `--start_time`: Model initialization start time (YYYY-MM-DD)
+- `--input_time`: Input time for flux prediction (YYYY-MM-DD)  
+- `--input_hour`: Hour for prediction (0-23)
+- `--end_time`: End time for analysis (YYYY-MM-DD)
+- `--energy_levels`: Comma-separated energy levels: "50,235,597,909" (keV)
+- `--dst_source`: DST data source (`omni` or `kyoto`)
+- `--al_source`: AL data source (`omni` or `al_CB`)
+- `--sw_source`: Solar wind data source (`omni` or `ace`)
+- `--get_mlt_flux`: Generate MLT plots (`true` or `false`)
+- `--output_dir`: Output directory for plots and data
+
+**Note**: This command-line interface is used by the Community Coordinated Modeling Center (CCMC) for automated execution of ORIENT model requests.
+
 ## Examples
 The examples are in the example/ folder as jupyter notebook.
 ### Model name
