@@ -46,34 +46,176 @@ eflux_1.make_plot(normmax = 10**4)
 
 ```
 
-### Usage - Command Line Interface Recommended for Community Coordinated Modeling Center (CCMC)
+### Usage – Command Line Interface (CCMC-style)
 
-For automated pipeline execution and production use, use the command-line script:
+For automated pipeline execution and production use (e.g., at CCMC), use the command-line script:
 
 ```bash
-# Basic usage
-python examples/run_ORIENT.py --start_time 2013-06-01 --input_time 2013-06-01 --input_hour 3 --end_time 2013-06-02 --energy_levels "50,235"
+# Basic usage: single energy
+python examples/run_ORIENT.py \
+  --start_time "2013-06-01 00:00" \
+  --input_time "2013-06-01 03:00" \
+  --end_time   "2013-06-02 00:00" \
+  --energy_levels "235"
 
 # Multiple energy levels with MLT plots
-python examples/run_ORIENT.py --start_time 2013-06-01 --input_time 2013-06-01 --input_hour 12 --end_time 2013-06-05 --energy_levels "50,235,597,909" --get_mlt_flux true --output_dir ./results
+python examples/run_ORIENT.py \
+  --start_time "2013-06-01 00:00" \
+  --input_time "2013-06-01 12:00" \
+  --end_time   "2013-06-05 00:00" \
+  --energy_levels "50,235,597,909" \
+  --get_mlt_flux true \
+  --output_dir ./results
 
 # Using different data sources
-python examples/run_ORIENT.py --start_time 2013-06-01 --input_time 2013-06-01 --input_hour 3 --end_time 2013-06-02 --energy_levels "235" --dst_source kyoto --al_source al_CB --sw_source ace
+python examples/run_ORIENT.py \
+  --start_time "2013-06-01 00:00" \
+  --input_time "2013-06-01 06:00" \
+  --end_time   "2013-06-02 00:00" \
+  --energy_levels "235" \
+  --dst_source kyoto \
+  --al_source  al_CB \
+  --sw_source  ace
+
+#### Command Line Options
+
+All times are interpreted as **UTC**.
+
+* `--start_time`
+  Model initialization start time, **including hour and minute**.
+  Format: `YYYY-MM-DD HH:MM` (e.g., `"2013-06-01 00:00"`)
+
+* `--input_time`
+  “Prediction time” for flux and MLT distributions.
+  The stacked plots draw a **red vertical line** at this time, and MLT polar plots are evaluated exactly at this instant.
+  Format: `YYYY-MM-DD HH:MM`
+
+* `--end_time`
+  End time of the analysis window (last time shown in the stacked time–L plots).
+  Format: `YYYY-MM-DD HH:MM`
+
+* `--energy_levels`
+  Comma-separated list of nominal energies (in keV):
+  `50, 235, 597, 909`
+  Example: `"50,235,597,909"`
+
+* `--dst_source`
+  SYMH/Dst data source
+
+  * `omni` (default): OMNI SYM-H
+  * `kyoto`: Kyoto WDC
+
+* `--al_source`
+  AL/AE data source
+
+  * `omni` (default)
+  * `al_CB`: AL forecast model (Xinlin Li, CU Boulder)
+
+* `--sw_source`
+  Solar wind data source
+
+  * `omni` (default): gap-filled, processed
+  * `ace`: ACE spacecraft (near-real-time, can have gaps)
+
+* `--get_mlt_flux`
+  Whether to compute and save MLT polar plots.
+
+  * `true` or `false` (default: `false`)
+
+* `--output_dir`
+  Output directory where PNG plots are written.
+  Default: `./orient_output`
+
+> **Note:** This command-line interface is used by the Community Coordinated Modeling Center (CCMC) for automated execution of ORIENT model requests.
+
+### Plot Outputs
+
+The CLI wrapper produces two main kinds of plots:
+
+#### 1. Stacked time–L plots
+
+**Filename pattern:**
+
+```text
+ORIENT_stacked_<energy_list>keV.png
+# e.g. ORIENT_stacked_50-235-597-909keV.png
 ```
 
-#### Command Line Options:
-- `--start_time`: Model initialization start time (YYYY-MM-DD)
-- `--input_time`: Input time for flux prediction (YYYY-MM-DD)  
-- `--input_hour`: Hour for prediction (0-23)
-- `--end_time`: End time for analysis (YYYY-MM-DD)
-- `--energy_levels`: Comma-separated energy levels: "50,235,597,909" (keV)
-- `--dst_source`: DST data source (`omni` or `kyoto`)
-- `--al_source`: AL data source (`omni` or `al_CB`)
-- `--sw_source`: Solar wind data source (`omni` or `ace`)
-- `--get_mlt_flux`: Generate MLT plots (`true` or `false`)
-- `--output_dir`: Output directory for plots and data
+**Structure (top → bottom):**
 
-**Note**: This command-line interface is used by the Community Coordinated Modeling Center (CCMC) for automated execution of ORIENT model requests.
+1. **SYMH** (from chosen Dst/SYM-H source)
+2. **Solar wind speed** (V_SW) (km/s)
+3. **Solar wind dynamic pressure** (P_SW) (nPa)
+4. **IMF B_z** (nT)
+5. **AL or AE** (depending on input availability)
+6. **One time–L panel per energy channel** (50, 235, 597, 909 keV)
+
+All panels share the same time axis. A **red dashed vertical line** marks the selected `--input_time` (prediction time).
+
+**Color scaling:**
+
+* Each energy panel shows **equatorial differential electron flux** vs. time and L-shell.
+* The color map uses a **base-10 logarithmic scale** (`LogNorm`), with ticks at integer decades:
+
+  * (10^0, 10^1, 10^2, …)
+* By default:
+
+  * **50 keV** uses a wider range (e.g. (10^2)–(10^7)) to capture large fluxes.
+  * **235, 597, 909 keV** share a **single, common colorbar** and flux range (e.g. (10^0)–(10^{4.5})) so that these energies are **directly comparable**.
+* Units:
+  [
+  \mathrm{cm^{-2},s^{-1},sr^{-1},keV^{-1}}
+  ]
+
+This design makes it easy to:
+
+* See how inputs (SYMH, solar wind, AL/AE) evolve over the chosen interval.
+* Compare how different energy channels respond to geomagnetic driving.
+* Identify the state at the prediction time (via the red vertical line).
+
+#### 2. MLT polar plots (optional)
+
+If `--get_mlt_flux true` is set, ORIENT saves **one polar plot per energy**:
+
+**Filename pattern:**
+
+```text
+ORIENT_<energy>keV_MLT.png
+# e.g. ORIENT_235keV_MLT.png
+```
+
+Each plot shows:
+
+* **Radius**: L-shell (typically 2.6–6.6)
+* **Angle**: Magnetic local time (MLT), labelled in hours (0, 6, 12, 18)
+* **Color**: Differential electron flux at the chosen `--input_time`
+
+**Color scaling and units:**
+
+* Flux is again plotted on a **base-10 logarithmic scale**.
+* Tick marks appear only at decades ((10^n)) for clean scientific interpretation.
+* The code uses percentile-based scaling to avoid single outliers dominating the color bar, but keeps values within physically reasonable global limits:
+
+  * By default, **50 keV** polar plots emphasize roughly (10^2)–(10^7).
+  * Higher energies (≥ 235 keV) emphasize roughly (10^0)–(10^5).
+* Units:
+  [
+  \mathrm{cm^{-2},s^{-1},sr^{-1},keV^{-1}}
+  ]
+
+These MLT plots answer: *“Given the driving up to the prediction time, what does the radial and local-time distribution of flux look like right now?”*
+
+You can override color limits programmatically via:
+
+```python
+fig, ax = eflux.makeMLTplot(
+    energy_label="235 keV",
+    normmin=1e0,
+    normmax=1e5,
+)
+```
+
+for fully reproducible comparisons across cases.
 
 ## Examples
 The examples are in the example/ folder as jupyter notebook.
