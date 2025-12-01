@@ -17,6 +17,7 @@ from .. import dst_kyoto
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.colors import LogNorm
 import matplotlib.ticker as ticker
+from matplotlib.ticker import LogLocator, LogFormatterMathtext
 from .utils import *
 import pickle
 import shap
@@ -327,7 +328,9 @@ class ElectronFlux(object):
             unix_time_raw = frame.index.values.astype(np.int64)//1e9
             if name in ['bz','flow_speed','pressure']:
                 unix_time_raw = unix_time_raw + 60 * self.timeshift 
-                gap_max = 120
+                gap_max = 1440
+                # Note: 120 is 120 minutes = 2 hours; 1440 = 24 hours
+                # We make this change to make it more forgiving if there is a gap in the solar wind data. That is what caused ’no results’ for the initial periods (the higher the energy, the longer of ’no results). 
                 if sw_source == 'ace':
                     gap_max = 1440
             else:
@@ -699,91 +702,146 @@ class ElectronFlux(object):
         return ob
     
     
-
-
-    def makeMLTplot(self,normmax = 10**4):
-        #plt.ioff()
-        fig = plt.figure(figsize = (12,10))#set the size of subplots
-        left,width=0.14,0.77
-        bottom,height=0.11,0.5
-        bottom_h=bottom+height+0.08
-        rect_line1=[left,bottom,width,height]
-        rect_line2=[left,bottom_h,width,0.2]
-        
-        #C = plot_matrix_total[tt,:,:].squeeze()
+    def makeMLTplot(
+        self,
+        normmax=None,
+        normmin=None,
+        energy_label=None,
+        dynamic_percentiles=(5.0, 99.0)):
+        # Compute flux in linear space
         plot_matrix_total = 10**self.mlt_prediction_final
         C = plot_matrix_total
 
-            # setting up 'polar' projection and plotting
+        # --- Dynamic color scaling -----------------------------------------
+        finite = np.isfinite(C) & (C > 0)
 
-        axpolar=plt.axes(rect_line1,projection = 'polar')
-        
-        # axsymh=plt.axes(rect_line2)
-        # axsymh.margins(x=0)
-        # axsymh.plot(pd.to_datetime(time_omni,unit = 's'),symh,color = 'r',label = 'SYM-H')
-        # axsymh.set_xlim(symhstart,symhend)
+        # You can tune these to your physical expectations:
+        GLOBAL_MIN_EXP = 0      # 10^0
+        GLOBAL_MAX_EXP = 7      # 10^7, for example
 
-        def radian_function(x, y =None):
-            rad_x = x/np.pi
-            return "{}".format(str(int(12*rad_x)))
-        # axsymh.plot(pd.to_datetime(time_omni,unit = 's'),AL,color = 'blue',label = '|AL|*0.1')
-        
-        
-        
-        # axsymh.set_ylabel('nT',fontsize = 16)
-        # axsymh.legend()
-        
-        cs = axpolar.pcolor(self.theta_mesh, self.r_mesh, C,norm=LogNorm(vmin = 1,vmax=normmax),cmap = 'jet')
+        if finite.any():
+            # Use percentiles to avoid outliers
+            lo, hi = np.nanpercentile(C[finite], dynamic_percentiles)
+
+            # Safety: avoid lo/hi <= 0
+            lo = max(lo, 1e-10)
+            hi = max(hi, lo * 1.0001)
+
+            # Get exponent range
+            log_lo = np.floor(np.log10(lo))
+            log_hi = np.ceil(np.log10(hi))
+
+            # Apply optional global constraints so all plots live in roughly same band
+            log_lo = max(log_lo, GLOBAL_MIN_EXP)
+            log_hi = min(log_hi, GLOBAL_MAX_EXP)
+
+            # If data is too flat, give at least one decade
+            if log_hi <= log_lo:
+                log_hi = log_lo + 1
+
+            if normmin is None:
+                normmin = 10**log_lo
+            if normmax is None:
+                normmax = 10**log_hi
+        else:
+            # Fallback if everything is NaN or non-positive
+            if normmin is None:
+                normmin = 10**GLOBAL_MIN_EXP
+            if normmax is None:
+                normmax = 10**(GLOBAL_MIN_EXP + 2)  # e.g. two decades
+
+        # -------------------------------------------------------------------
+        fig = plt.figure(figsize=(12, 10))
+        left, width = 0.14, 0.77
+        bottom, height = 0.11, 0.5
+        bottom_h = bottom + height + 0.08
+        rect_line1 = [left, bottom, width, height]
+        rect_line2 = [left, bottom_h, width, 0.2]
+
+        axpolar = plt.axes(rect_line1, projection="polar")
+
+        def radian_function(x, y=None):
+            rad_x = x / np.pi
+            return "{}".format(str(int(12 * rad_x)))  # 0, 6, 12, 18 MLT
+
+        cs = axpolar.pcolor(
+            self.theta_mesh,
+            self.r_mesh,
+            C,
+            norm=LogNorm(vmin=normmin, vmax=normmax),
+            cmap="jet",
+        )
         axpolar.grid(True)
-        
-        axpolar.set_xticks(np.pi/180. * np.linspace(0,  360, 4, endpoint=False))
+
+        axpolar.set_xticks(np.pi / 180.0 * np.linspace(0, 360, 4, endpoint=False))
         axpolar.xaxis.set_major_formatter(ticker.FuncFormatter(radian_function))
-        
-        
-        
-        
-        ##########
-        #plot earth
-        axpolar.set_yticks([2,4,6])
+
+        # --- Plot Earth / geometry -----------------------------------------
+        axpolar.set_yticks([2, 4, 6])
         rr = np.arange(0, 2, 0.01)
         theta_new = 2 * np.pi * rr
-        axpolar.plot(theta_new,rr*0 + 1,'black')
-        axpolar.set_ylim(0,6.5)
-        r1 = np.arange(0,1,0.01)
-        axpolar.plot(r1*0 + np.pi/2,r1,'black')
-        axpolar.plot(r1*0 - np.pi/2,r1,'black')
-        theta_new = np.arange(-0.5, 0.5, 1./180)*np.pi
+        axpolar.plot(theta_new, rr * 0 + 1, "black")
+        axpolar.set_ylim(0, 6.5)
+        r1 = np.arange(0, 1, 0.01)
+        axpolar.plot(r1 * 0 + np.pi / 2, r1, "black")
+        axpolar.plot(r1 * 0 - np.pi / 2, r1, "black")
+        theta_new = np.arange(-0.5, 0.5, 1.0 / 180) * np.pi
         axpolar.fill_between(
-        np.linspace(-np.pi/2, np.pi/2, 100),  # Go from 0 to pi/2
-        0,                          # Fill from radius 0
-        1,
-        color = 'black'# To radius 1
-        )       
-    
-        ################
-        axpolar.tick_params(axis='x', labelsize=22)
-        axpolar.tick_params(axis='y', labelsize=22)
-        #axsymh.tick_params(axis='x', labelsize=12)
-        #axsymh.tick_params(axis='y', labelsize=12)
-        
-        #axsymh.axvline(x=t_data[tt+timestart_index],color='black',linestyle="--")
-        
-        color_axis_1 = inset_axes(axpolar, width="5%",  # width = 5% of parent_bbox width
-                                    height="100%",
-                                    loc='lower left',
-                                    bbox_to_anchor=(1.2, 0., 1, 1),
-                                    bbox_transform=axpolar.transAxes,
-                                    borderpad=0,
-                                    )
-        
-        
-        
-        #########
-        cb = fig.colorbar(cs,cax = color_axis_1)
-        
-        cb.ax.tick_params(labelsize=22) 
-        cb.set_label(label=r'$cm^{-2}s^{-1}sr^{-1}keV^{-1}$',fontsize = 30)
-        plt.show()
+            np.linspace(-np.pi / 2, np.pi / 2, 100),
+            0,
+            1,
+            color="black",
+        )
+
+        axpolar.tick_params(axis="x", labelsize=22)
+        axpolar.tick_params(axis="y", labelsize=22)
+
+        # --- Title with energy ---------------------------------------------
+        if energy_label is not None:
+            # if get_MLT_flux was used, we set self.MLT_datetime in get_flux
+            time_str = ""
+            if hasattr(self, "MLT_datetime") and self.MLT_datetime is not None:
+                time_str = self.MLT_datetime.strftime("%Y-%m-%d %H:%M UT")
+
+            title_lines = [f"ORIENT Electron Differential Flux ({energy_label})",
+                        "Equatorial MLT–L Map"]
+            if time_str:
+                title_lines.append(f"Snapshot at {time_str}")
+
+            axpolar.set_title("\n".join(title_lines), fontsize=24, pad=20)
+
+
+        # --- Colorbar ------------------------------------------------------
+        color_axis_1 = inset_axes(
+            axpolar,
+            width="5%",
+            height="100%",
+            loc="lower left",
+            bbox_to_anchor=(1.2, 0.0, 1, 1),
+            bbox_transform=axpolar.transAxes,
+            borderpad=0,
+        )
+
+        cb = fig.colorbar(cs, cax=color_axis_1)
+
+        # Force ticks at decades only: 10^0, 10^1, 10^2, ...
+        locator = LogLocator(base=10.0, subs=(1.0,))  # only 1 * 10^n
+        formatter = LogFormatterMathtext(base=10.0, labelOnlyBase=True)
+
+        cb.locator = locator
+        cb.formatter = formatter
+        cb.update_ticks()
+
+        cb.ax.tick_params(labelsize=22)
+        cb.set_label(
+            label=r"$\mathrm{cm^{-2}\,s^{-1}\,sr^{-1}\,keV^{-1}}$",
+            fontsize=30,
+        )
+
+        # If you’re running this in batch (non-interactive), you can drop show()
+        # plt.show()
+        return fig, axpolar
+
     def get_explainer(self,explainer_name = 'GradientExplainer',training_folder = '/Users/donglaima/Research/data/orient_traindata',select_num = 100):
         #tf.compat.v1.disable_v2_behavior()
         tf.compat.v1.disable_eager_execution()
